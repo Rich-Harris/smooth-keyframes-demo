@@ -1,0 +1,344 @@
+<:Window on:resize='handleResize()'/>
+
+<div ref:container>
+	<svg on:mousemove='showValue(event)' on:mouseleave='set({ time: -1 })'>
+		<!-- ticks -->
+		{{#each x_ticks as tick}}
+			<text text-anchor='middle' x='{{x(tick)}}' y='{{height + 16}}'>{{tick}}</text>
+		{{/each}}
+
+		{{#each y_ticks as tick}}
+			<text text-anchor='end' x='-5' y='{{y(tick) + 4}}'>{{tick}}</text>
+		{{/each}}
+
+		<polyline points='{{polyline}}'/>
+
+		{{#if show_points}}
+			{{#each points as point}}
+				<circle cx='{{x(point.time)}}' cy='{{y(point.value)}}' r='2'/>
+			{{/each}}
+		{{/if}}
+
+		{{#if show_control_points}}
+			{{#each curve.frames as frame, i}}
+				{{#if frame.leftControlPoint}}
+					<line
+						class='control-point-link'
+						x1='{{x(frame.time + frame.leftControlPoint.time)}}'
+						y1='{{y(frame.value + frame.leftControlPoint.value)}}'
+						x2='{{x(frame.time)}}'
+						y2='{{y(frame.value)}}'
+					/>
+
+					<circle
+						class='control-point'
+						cx='{{x(frame.time + frame.leftControlPoint.time)}}'
+						cy='{{y(frame.value + frame.leftControlPoint.value)}}'
+						fill=green
+						r='3'
+					/>
+				{{/if}}
+
+				{{#if frame.rightControlPoint}}
+					<line
+						class='control-point-link'
+						x1='{{x(frame.time + frame.rightControlPoint.time)}}'
+						y1='{{y(frame.value + frame.rightControlPoint.value)}}'
+						x2='{{x(frame.time)}}'
+						y2='{{y(frame.value)}}'
+					/>
+
+					<circle
+						class='control-point'
+						cx='{{x(frame.time + frame.rightControlPoint.time)}}'
+						cy='{{y(frame.value + frame.rightControlPoint.value)}}'
+						fill=green
+						r='3'
+					/>
+				{{/if}}
+			{{/each}}
+
+			{{#each curve.segments as segment}}
+				<Segment :segment :x :y :t/>
+			{{/each}}
+		{{/if}}
+
+		{{#if show_knots}}
+			{{#each curve.frames as frame}}
+				<circle
+					class='frame'
+					cx='{{x(frame.time)}}'
+					cy='{{y(frame.value)}}'
+					r='3'
+				/>
+			{{/each}}
+		{{/if}}
+
+		{{#if time > 0}}
+			<line
+				class='highlight'
+				x1=0
+				x2='{{x(time)}}'
+				y1='{{y(value)}}'
+				y2='{{y(value)}}'
+			/>
+
+			<line
+				class='highlight'
+				x1='{{x(time)}}'
+				x2='{{x(time)}}'
+				y1='{{y(value)}}'
+				y2='{{height}}'
+			/>
+		{{/if}}
+	</svg>
+</div>
+
+<p>max value: {{value_range[1]}}</p>
+
+<div class='controls'>
+	<label>
+		<input type='range' bind:value=tension min=0 max=1 step=0.01> tension={{tension}}
+	</label>
+
+	<label>
+		<input type='range' bind:value=samples min=0 max=200 step=1> samples={{samples}}
+	</label>
+
+	<label>
+		<input type='range' bind:value=t min=0 max=1 step=0.01> t={{t}}
+	</label>
+
+	<label>
+		<input type='checkbox' bind:checked=show_knots> show knots
+	</label>
+
+	<label>
+		<input type='checkbox' bind:checked=show_control_points> show control points
+	</label>
+
+	<label>
+		<input type='checkbox' bind:checked=show_points> show sampled points
+	</label>
+</div>
+
+<style>
+	ref:container {
+		position: relative;
+		height: 400px;
+		margin: 4em;
+	}
+
+	svg {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+
+	polyline {
+		stroke: black;
+		fill: none;
+	}
+
+	.frame {
+		stroke: black;
+		fill: red;
+	}
+
+	.control-point-link {
+		stroke: blue;
+	}
+
+	text {
+		font-size: 12px;
+	}
+
+	.highlight {
+		stroke: red;
+	}
+</style>
+
+<script>
+	import Segment from './Segment.html'
+	import keyframes from 'smooth-keyframes';
+	import * as yootils from 'yootils';
+	import ticks from './ticks.js';
+
+	export default {
+		data() {
+			return {
+				show_knots: false,
+				show_control_points: false,
+				show_points: true,
+
+				t: 0,
+				width: 600,
+				height: 200,
+				tension: 1,
+				samples: 100,
+				frames: [
+					{ time: 0, value: 0 },
+					// { time: 0.5, value: 0.5 },
+					{ time: 0.33, value: 1 },
+					{ time: 0.66, value: 0 },
+					{ time: 1, value: 1 },
+					{ time: 2, value: 1 },
+					{ time: 3, value: 0.8 },
+					// { time: 2, value: 1 },
+				],
+				time: -1,
+				// frames: [
+				// 	{
+				// 		"time": 0,
+				// 		"value": 0.17609125905568124
+				// 	},
+				// 	{
+				// 		"time": 1,
+				// 		"value": 0.3979400086720376
+				// 	},
+				// 	{
+				// 		"time": 2,
+				// 		"value": 2
+				// 	},
+				// 	{
+				// 		"time": 3,
+				// 		"value": 4.6020599913279625
+				// 	},
+				// 	{
+				// 		"time": 4,
+				// 		"value": 5.740362689494244
+				// 	},
+				// 	{
+				// 		"time": 5,
+				// 		"value": 5.7923916894982534
+				// 	},
+				// 	{
+				// 		"time": 6,
+				// 		"value": 5.7923916894982534
+				// 	},
+				// 	{
+				// 		"time": 7,
+				// 		"value": 5.7923916894982534
+				// 	},
+				// 	{
+				// 		"time": 8,
+				// 		"value": 5.7923916894982534
+				// 	},
+				// 	{
+				// 		"time": 9,
+				// 		"value": 6
+				// 	},
+				// 	{
+				// 		"time": 10,
+				// 		"value": 6
+				// 	},
+				// 	{
+				// 		"time": 11,
+				// 		"value": 6
+				// 	},
+				// 	{
+				// 		"time": 12,
+				// 		"value": 6
+				// 	},
+				// 	{
+				// 		"time": 13,
+				// 		"value": 6
+				// 	},
+				// 	{
+				// 		"time": 14,
+				// 		"value": 6
+				// 	},
+				// 	{
+				// 		"time": 15,
+				// 		"value": 6
+				// 	}
+				// ]
+			};
+		},
+
+		computed: {
+			time_range(frames) {
+				return [
+					frames[0].time,
+					frames[frames.length - 1].time
+				];
+			},
+
+			value_range(frames) {
+				let min = Infinity;
+				let max = -Infinity;
+				frames.forEach(frame => {
+					if (frame.value < min) min = frame.value;
+					if (frame.value > max) max = frame.value;
+				});
+				return [min, max];
+			},
+
+			x(time_range, width) {
+				return yootils.linearScale(time_range, [0, width]);
+			},
+
+			x_to_time: x => x.inverse(),
+
+			y(value_range, height) {
+				return yootils.linearScale(value_range, [height, 0]);
+			},
+
+			curve(frames, tension, samples) {
+				const curve = keyframes(frames, {
+					tension,
+					samples
+				});
+
+				return curve;
+			},
+
+			points(curve) {
+				return curve.points;
+			},
+
+			polyline(points, x, y) {
+				const polyline = points.map(point => `${x(point.time)},${y(point.value)}`).join(' ');
+				return polyline;
+			},
+
+			x_ticks(time_range) {
+				return ticks(time_range[0], time_range[1], 3);
+			},
+
+			y_ticks(value_range) {
+				return ticks(value_range[0], value_range[1], 3);
+			},
+
+			value: (time, curve) => curve.at(time)
+		},
+
+		oncreate() {
+			this.handleResize();
+		},
+
+		methods: {
+			handleResize() {
+				this.set({
+					width: this.refs.container.offsetWidth,
+					height: this.refs.container.offsetHeight
+				});
+			},
+
+			showValue(event) {
+				const { left } = this.refs.container.getBoundingClientRect();
+				const x = event.clientX - left;
+
+				const { x_to_time, curve } = this.get();
+				const time = x_to_time(x);
+
+				this.set({ time });
+			}
+		},
+
+		components: {
+			Segment
+		}
+	};
+</script>

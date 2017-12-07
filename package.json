@@ -16,6 +16,7 @@
     "start": "serve public"
   },
   "dependencies": {
+    "d3-voronoi": "^1.1.2",
     "yootils": "^0.0.9"
   }
 }

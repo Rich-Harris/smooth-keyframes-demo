@@ -1,70 +1,66 @@
 <:Window on:resize='handleResize()'/>
 
-<div ref:container>
-	<svg on:mousemove='showValue(event)' on:mouseleave='set({ time: -1 })'>
-		<!-- ticks -->
-		{{#each x_ticks as tick}}
-			<text text-anchor='middle' x='{{x(tick)}}' y='{{height + 16}}'>{{tick}}</text>
-		{{/each}}
-
-		{{#each y_ticks as tick}}
-			<text text-anchor='end' x='-5' y='{{y(tick) + 4}}'>{{tick}}</text>
-		{{/each}}
-
-		<polyline points='{{polyline}}'/>
-
-		{{#if show_points}}
-			{{#each points as point}}
-				<circle cx='{{x(point.time)}}' cy='{{y(point.value)}}' r='2'/>
-			{{/each}}
-		{{/if}}
-
-		{{#if show_control_points}}
-			{{#each curve.frames as frame, i}}
-				{{#if frame.leftControlPoint}}
-					<line
-						class='control-point-link'
-						x1='{{x(frame.time + frame.leftControlPoint.time)}}'
-						y1='{{y(frame.value + frame.leftControlPoint.value)}}'
-						x2='{{x(frame.time)}}'
-						y2='{{y(frame.value)}}'
-					/>
-
-					<circle
-						class='control-point'
-						cx='{{x(frame.time + frame.leftControlPoint.time)}}'
-						cy='{{y(frame.value + frame.leftControlPoint.value)}}'
-						fill=green
-						r='3'
-					/>
-				{{/if}}
-
-				{{#if frame.rightControlPoint}}
-					<line
-						class='control-point-link'
-						x1='{{x(frame.time + frame.rightControlPoint.time)}}'
-						y1='{{y(frame.value + frame.rightControlPoint.value)}}'
-						x2='{{x(frame.time)}}'
-						y2='{{y(frame.value)}}'
-					/>
-
-					<circle
-						class='control-point'
-						cx='{{x(frame.time + frame.rightControlPoint.time)}}'
-						cy='{{y(frame.value + frame.rightControlPoint.value)}}'
-						fill=green
-						r='3'
-					/>
-				{{/if}}
+<div class='layout'>
+	<div ref:container>
+		<svg on:mousemove='showValue(event)' on:mouseleave='set({ time: -1 })'>
+			<!-- ticks -->
+			{{#each x_ticks as tick}}
+				<text text-anchor='middle' x='{{x(tick)}}' y='{{height + 16}}'>{{tick}}</text>
 			{{/each}}
 
-			{{#each curve.segments as segment}}
-				<Segment :segment :x :y :t/>
+			{{#each y_ticks as tick}}
+				<text text-anchor='end' x='-5' y='{{y(tick) + 4}}'>{{tick}}</text>
 			{{/each}}
-		{{/if}}
 
-		{{#if show_knots}}
-			{{#each curve.frames as frame}}
+			<polyline points='{{polyline}}'/>
+
+			{{#if show_points}}
+				{{#each points as point}}
+					<circle cx='{{x(point.time)}}' cy='{{y(point.value)}}' r='2'/>
+				{{/each}}
+			{{/if}}
+
+			{{#if show_control_points}}
+				{{#each curve.frames as frame, i}}
+					{{#if frame.control[0]}}
+						<line
+							class='control-point-link'
+							x1='{{x(frame.time + frame.control[0].time)}}'
+							y1='{{y(frame.value + frame.control[0].value)}}'
+							x2='{{x(frame.time)}}'
+							y2='{{y(frame.value)}}'
+						/>
+
+						<circle
+							class='control-point'
+							cx='{{x(frame.time + frame.control[0].time)}}'
+							cy='{{y(frame.value + frame.control[0].value)}}'
+							fill=green
+							r='3'
+						/>
+					{{/if}}
+
+					{{#if frame.control[1]}}
+						<line
+							class='control-point-link'
+							x1='{{x(frame.time + frame.control[1].time)}}'
+							y1='{{y(frame.value + frame.control[1].value)}}'
+							x2='{{x(frame.time)}}'
+							y2='{{y(frame.value)}}'
+						/>
+
+						<circle
+							class='control-point'
+							cx='{{x(frame.time + frame.control[1].time)}}'
+							cy='{{y(frame.value + frame.control[1].value)}}'
+							fill=green
+							r='3'
+						/>
+					{{/if}}
+				{{/each}}
+			{{/if}}
+
+			{{#each frames as frame}}
 				<circle
 					class='frame'
 					cx='{{x(frame.time)}}'
@@ -72,61 +68,84 @@
 					r='3'
 				/>
 			{{/each}}
-		{{/if}}
 
-		{{#if time > 0}}
-			<line
-				class='highlight'
-				x1=0
-				x2='{{x(time)}}'
-				y1='{{y(value)}}'
-				y2='{{y(value)}}'
-			/>
+			{{#if time > 0}}
+				<g class='highlight'>
+					<line
+						x1=0
+						x2='{{x(time)}}'
+						y1='{{y(value)}}'
+						y2='{{y(value)}}'
+					/>
 
-			<line
-				class='highlight'
-				x1='{{x(time)}}'
-				x2='{{x(time)}}'
-				y1='{{y(value)}}'
-				y2='{{height}}'
-			/>
-		{{/if}}
-	</svg>
-</div>
+					<line
+						x1='{{x(time)}}'
+						x2='{{x(time)}}'
+						y1='{{y(value)}}'
+						y2='{{height}}'
+					/>
+				</g>
+			{{/if}}
 
-<p>max value: {{value_range[1]}}</p>
+			<g class='voronoi'>
+				{{#each voronoi as polygon}}
+					<g class='cell' on:mousedown='drag(event, polygon.data)'>
+						<polygon
+							class='voronoi'
+							points='{{getPoints(polygon)}}'
+						/>
 
-<div class='controls'>
-	<label>
-		<input type='range' bind:value=tension min=0 max=1 step=0.01> tension={{tension}}
-	</label>
+						<circle
+							class='frame-halo'
+							cx='{{x(polygon.data.time)}}'
+							cy='{{y(polygon.data.value)}}'
+							r='20'
+						/>
+					</g>
+				{{/each}}
+			</g>
+		</svg>
+	</div>
 
-	<label>
-		<input type='range' bind:value=samples min=0 max=200 step=1> samples={{samples}}
-	</label>
+	<div class='controls'>
+		<!-- <label>
+			<input type='range' bind:value=tension min=0 max=1 step=0.01> tension={{tension}}
+		</label> -->
 
-	<label>
-		<input type='range' bind:value=t min=0 max=1 step=0.01> t={{t}}
-	</label>
+		<label>
+			<input type='range' bind:value=samples min=0 max=200 step=1> samples={{samples}}
+		</label>
 
-	<label>
-		<input type='checkbox' bind:checked=show_knots> show knots
-	</label>
+		<label>
+			<input type='checkbox' bind:checked=show_control_points> show control points
+		</label>
 
-	<label>
-		<input type='checkbox' bind:checked=show_control_points> show control points
-	</label>
-
-	<label>
-		<input type='checkbox' bind:checked=show_points> show sampled points
-	</label>
+		<label>
+			<input type='checkbox' bind:checked=show_points> show sampled points
+		</label>
+	</div>
 </div>
 
 <style>
+	.layout {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		padding: 0 1em 6em 2em;
+		box-sizing: border-box;
+	}
+
+	.controls {
+		position: absolute;
+		width: 100%;
+		/* height: 6em; */
+		left: 0;
+		bottom: 0;
+	}
+
 	ref:container {
 		position: relative;
-		height: 400px;
-		margin: 4em;
+		height: 100%;
 	}
 
 	svg {
@@ -146,6 +165,11 @@
 		fill: red;
 	}
 
+	.frame-halo {
+		fill-opacity: 0.01;
+		cursor: move;
+	}
+
 	.control-point-link {
 		stroke: blue;
 	}
@@ -157,103 +181,40 @@
 	.highlight {
 		stroke: red;
 	}
+
+	.voronoi {
+		fill: purple;
+		fill-opacity: 0.1;
+		stroke: white;
+	}
 </style>
 
 <script>
-	import Segment from './Segment.html'
 	import keyframes from 'smooth-keyframes';
 	import * as yootils from 'yootils';
 	import ticks from './ticks.js';
+	import { voronoi } from 'd3-voronoi';
 
 	export default {
 		data() {
 			return {
-				show_knots: false,
-				show_control_points: false,
+				show_control_points: true,
 				show_points: true,
 
-				t: 0,
 				width: 600,
 				height: 200,
 				tension: 1,
 				samples: 100,
 				frames: [
 					{ time: 0, value: 0 },
-					// { time: 0.5, value: 0.5 },
-					{ time: 0.33, value: 1 },
-					{ time: 0.66, value: 0 },
-					{ time: 1, value: 1 },
-					{ time: 2, value: 1 },
-					{ time: 3, value: 0.8 },
-					// { time: 2, value: 1 },
+					{ time: 20, value: 0.2 },
+					{ time: 30, value: 0.7 },
+					{ time: 40, value: 0.3, },
+					{ time: 60, value: 0.8, },
+					{ time: 80, value: 0.4, },
+					{ time: 100, value: 1 }
 				],
-				time: -1,
-				// frames: [
-				// 	{
-				// 		"time": 0,
-				// 		"value": 0.17609125905568124
-				// 	},
-				// 	{
-				// 		"time": 1,
-				// 		"value": 0.3979400086720376
-				// 	},
-				// 	{
-				// 		"time": 2,
-				// 		"value": 2
-				// 	},
-				// 	{
-				// 		"time": 3,
-				// 		"value": 4.6020599913279625
-				// 	},
-				// 	{
-				// 		"time": 4,
-				// 		"value": 5.740362689494244
-				// 	},
-				// 	{
-				// 		"time": 5,
-				// 		"value": 5.7923916894982534
-				// 	},
-				// 	{
-				// 		"time": 6,
-				// 		"value": 5.7923916894982534
-				// 	},
-				// 	{
-				// 		"time": 7,
-				// 		"value": 5.7923916894982534
-				// 	},
-				// 	{
-				// 		"time": 8,
-				// 		"value": 5.7923916894982534
-				// 	},
-				// 	{
-				// 		"time": 9,
-				// 		"value": 6
-				// 	},
-				// 	{
-				// 		"time": 10,
-				// 		"value": 6
-				// 	},
-				// 	{
-				// 		"time": 11,
-				// 		"value": 6
-				// 	},
-				// 	{
-				// 		"time": 12,
-				// 		"value": 6
-				// 	},
-				// 	{
-				// 		"time": 13,
-				// 		"value": 6
-				// 	},
-				// 	{
-				// 		"time": 14,
-				// 		"value": 6
-				// 	},
-				// 	{
-				// 		"time": 15,
-				// 		"value": 6
-				// 	}
-				// ]
+				time: -1
 			};
 		},
 
@@ -285,6 +246,8 @@
 				return yootils.linearScale(value_range, [height, 0]);
 			},
 
+			y_to_value: y => y.inverse(),
+
 			curve(frames, tension, samples) {
 				const curve = keyframes(frames, {
 					tension,
@@ -311,7 +274,22 @@
 				return ticks(value_range[0], value_range[1], 3);
 			},
 
-			value: (time, curve) => curve.at(time)
+			value: (time, curve) => curve.at(time),
+
+			voronoi(frames, time_range, value_range, x, y) {
+				const v = voronoi()
+					.extent([[0, y(1)], [x(100), y(0)]])
+					.x(d => x(d.time))
+					.y(d => y(d.value));
+
+				return v.polygons(frames).filter(Boolean);
+			}
+		},
+
+		helpers: {
+			getPoints(cell) {
+				return cell.join(' ');
+			}
 		},
 
 		oncreate() {
@@ -334,11 +312,67 @@
 				const time = x_to_time(x);
 
 				this.set({ time });
-			}
-		},
+			},
 
-		components: {
-			Segment
+			drag(event, frame) {
+				const { x, y, x_to_time, y_to_value, frames } = this.get();
+
+				const { left, top } = this.refs.container.getBoundingClientRect();
+
+				let lastX = event.clientX - left;
+				let lastY = event.clientY - top;
+
+				let cx = x(frame.time);
+				let cy = y(frame.value);
+
+				let dx = lastX - cx;
+				let dy = lastY - cy;
+
+				if ((dx * dx + dy * dy) > 400) {
+					cx = lastX;
+					cy = lastY;
+					dx = 0;
+					dy = 0;
+
+					const time = x_to_time(cx);
+					const value = y_to_value(cy);
+
+					console.log({ cx, cy, time, value });
+
+					frame = {
+						time,
+						value
+					};
+
+					frames.push(frame);
+					frames.sort((a, b) => a.time - b.time);
+					this.set({ frames });
+				}
+
+				else {
+					if (frame === frames[0] || frame === frames[frames.length - 1]) return;
+				}
+
+				const mousemove = event => {
+					const { left, top } = this.refs.container.getBoundingClientRect();
+
+					const cx = (event.clientX - left) - dx;
+					const cy = (event.clientY - top) - dy;
+
+					frame.time = yootils.clamp(x_to_time(cx), 0.01, 99.99);
+					frame.value = yootils.clamp(y_to_value(cy), 0, 1);
+
+					this.set({ frames });
+				};
+
+				const mouseup = event => {
+					window.removeEventListener('mousemove', mousemove);
+					window.removeEventListener('mouseup', mouseup);
+				};
+
+				window.addEventListener('mousemove', mousemove);
+				window.addEventListener('mouseup', mouseup);
+			}
 		}
 	};
 </script>
